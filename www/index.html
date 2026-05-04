@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FretSoul — Instant Guitar Tabs</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #c8a97e; --gold-light: #e8c99a; --gold-dark: #a07850;
+    --bg: #0d0700; --bg2: #1c1005; --bg3: #160d04;
+    --text: #e8d5b0; --text-dim: rgba(232,200,154,0.45);
+    --border: rgba(200,169,126,0.14); --card: rgba(255,255,255,0.04);
+  }
+  html, body { height: 100%; background: #000; font-family: 'Lato', sans-serif; }
+  #app {
+    max-width: 480px; min-height: 100vh; margin: 0 auto;
+    background: linear-gradient(155deg, var(--bg2) 0%, var(--bg) 50%, var(--bg3) 100%);
+    position: relative; overflow-x: hidden;
+  }
+  /* grain overlay */
+  #app::before {
+    content: ''; position: fixed; inset: 0; max-width: 480px; margin: 0 auto;
+    pointer-events: none; z-index: 0; opacity: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+    background-size: 180px;
+  }
+  .screen { position: relative; z-index: 1; padding-bottom: 80px; }
+  .screen.no-pad { padding-bottom: 0; }
+
+  /* NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px; z-index: 100;
+    background: rgba(6,3,0,0.97); border-top: 1px solid var(--border);
+    backdrop-filter: blur(24px); display: flex; padding-bottom: 4px;
+  }
+  .nav-btn {
+    flex: 1; padding: 11px 0 7px; background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4;
+    transition: opacity 0.2s;
+  }
+  .nav-btn span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(200,169,126,0.28); }
+  .nav-btn.active span { color: var(--gold); }
+  .nav-dot { width: 20px; height: 2px; border-radius: 1px; background: var(--gold); margin-top: 2px; }
+
+  /* INPUTS */
+  input[type=text] {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(200,169,126,0.18); border-radius: 12px;
+    padding: 14px 16px; color: var(--text); font-size: 15px;
+    font-family: 'Lato', sans-serif; outline: none; caret-color: var(--gold);
+    transition: border-color 0.2s;
+  }
+  input[type=text]:focus { border-color: rgba(200,169,126,0.45); }
+  input[type=text]::placeholder { color: rgba(200,169,126,0.28); }
+
+  /* LABEL */
+  .label { font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(200,169,126,0.38); margin-bottom: 10px; }
+
+  /* TOGGLE ROW */
+  .toggle-row {
+    display: flex; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 4px;
+  }
+  .toggle-btn {
+    flex: 1; padding: 10px 6px; border-radius: 9px; border: none; cursor: pointer;
+    background: transparent; display: flex; align-items: center; justify-content: center;
+    gap: 7px; font-family: 'Lato', sans-serif; font-weight: 700; font-size: 12px;
+    color: rgba(200,169,126,0.35); transition: all 0.2s;
+  }
+  .toggle-btn.active {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1a0f00;
+  }
+
+  /* GUITAR CARD */
+  .guitar-card {
+    flex: 1; overflow: hidden; border-radius: 14px; cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.06); background: transparent;
+    transition: all 0.2s; padding: 0;
+  }
+  .guitar-card.active { border-color: var(--gold); box-shadow: 0 0 20px rgba(200,169,126,0.2); }
+  .guitar-card img { width: 100%; height: 66px; object-fit: cover; display: block; opacity: 0.3; transition: opacity 0.2s; }
+  .guitar-card.active img { opacity: 0.85; }
+  .guitar-card span {
+    display: block; padding: 7px 4px; font-size: 10.5px; font-weight: 700;
+    text-transform: capitalize; letter-spacing: 0.4px; background: rgba(0,0,0,0.5);
+    color: rgba(200,169,126,0.35); transition: color 0.2s;
+  }
+  .guitar-card.active span { color: var(--gold); }
+
+  /* SKILL BTN */
+  .skill-btn {
+    flex: 1; padding: 13px 6px; border-radius: 13px; cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.04);
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    transition: all 0.2s; font-family: 'Lato', sans-serif;
+  }
+  .skill-btn.active { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border-color: var(--gold-light); }
+  .skill-btn span { font-size: 10.5px; font-weight: 700; text-transform: capitalize; letter-spacing: 0.3px; color: rgba(200,169,126,0.45); }
+  .skill-btn.active span { color: #1a0f00; }
+
+  /* CTA */
+  .cta-btn {
+    width: 100%; padding: 17px 0; border: none; border-radius: 14px;
+    font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 800;
+    letter-spacing: 0.3px; cursor: pointer; transition: all 0.25s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(255,255,255,0.04); color: rgba(200,169,126,0.2);
+  }
+  .cta-btn.ready {
+    background: linear-gradient(135deg, var(--gold) 0%, #b08858 55%, var(--gold-dark) 100%);
+    color: #1a0f00; box-shadow: 0 10px 35px rgba(200,169,126,0.28);
+  }
+
+  /* PROGRESS BAR */
+  .progress-track { width: 100%; max-width: 250px; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #9a6e3a, var(--gold), var(--gold-light)); border-radius: 2px; transition: width 0.3s ease; }
+
+  /* CHIP */
+  .chip {
+    background: rgba(200,169,126,0.07); border: 1px solid rgba(200,169,126,0.15);
+    border-radius: 20px; padding: 4px 12px; color: rgba(200,169,126,0.65);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+  }
+
+  /* CHORD DIAGRAM */
+  .chord-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chord-card {
+    cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 13px 11px; border-radius: 16px; min-width: 70px;
+    background: rgba(255,255,255,0.04); border: 2px solid rgba(200,169,126,0.1);
+    transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .chord-card.active {
+    background: linear-gradient(145deg, #d4ac7a, #9a6e3a);
+    border-color: var(--gold-light);
+    transform: scale(1.06); box-shadow: 0 8px 24px rgba(200,169,126,0.25);
+  }
+  .chord-card .chord-name { font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; color: var(--gold-light); }
+  .chord-card.active .chord-name { color: #1a0f00; }
+
+  /* TAB SHEET */
+  .tab-sheet {
+    background: rgba(0,0,0,0.38); border-radius: 14px; padding: 16px 18px;
+    font-family: 'Courier New', monospace; overflow-x: auto;
+    border: 1px solid rgba(200,169,126,0.1);
+  }
+  .tab-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .tab-string { color: var(--gold); font-weight: 800; font-size: 11px; width: 12px; flex-shrink: 0; }
+  .tab-bar { color: rgba(200,169,126,0.25); font-size: 13px; }
+  .tab-notes { color: var(--text); font-size: 13px; letter-spacing: 2px; }
+
+  /* CARD ROW */
+  .card-row {
+    background: var(--card); border: 1px solid rgba(200,169,126,0.09);
+    border-radius: 16px; padding: 14px 16px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .card-row:hover { background: rgba(255,255,255,0.07); }
+
+  /* NOTIFICATION */
+  #notif {
+    position: fixed; top: -130px; left: 50%; transform: translateX(-50%);
+    z-index: 999; min-width: 310px; cursor: pointer;
+    background: linear-gradient(135deg, #231407, #3b1f09);
+    border: 1px solid rgba(200,169,126,0.35); border-radius: 20px;
+    padding: 13px 16px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    transition: top 0.55s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #notif.show { top: 14px; }
+
+  /* SWITCH */
+  .switch-track {
+    width: 46px; height: 26px; border-radius: 13px; position: relative; cursor: pointer;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(200,169,126,0.18);
+    transition: background 0.25s; flex-shrink: 0;
+  }
+  .switch-track.on { background: var(--gold); border-color: transparent; }
+  .switch-thumb {
+    width: 20px; height: 20px; border-radius: 10px; background: #fff;
+    position: absolute; top: 3px; left: 3px;
+    transition: left 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  }
+  .switch-track.on .switch-thumb { left: 23px; }
+
+  /* HERO */
+  .result-hero { position: relative; height: 180px; overflow: hidden; }
+  .result-hero img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; display: block; }
+  .result-hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(11,6,0,0.2) 0%, rgba(11,6,0,0.96) 100%);
+  }
+  .result-hero-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 20px 18px; display: flex; align-items: flex-end; justify-content: space-between; }
+
+  /* SAVE BTN */
+  .save-btn {
+    background: rgba(255,255,255,0.07); border: 1.5px solid rgba(200,169,126,0.22);
+    border-radius: 12px; padding: 9px 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px; transition: all 0.2s;
+    font-family: 'Lato', sans-serif; font-weight: 700; font-size: 13px; color: var(--gold);
+  }
+  .save-btn.saved { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border-color: var(--gold-light); color: #1a0f00; }
+
+  /* CHORD DETAIL */
+  .chord-detail {
+    background: rgba(200,169,126,0.06); border: 1px solid rgba(200,169,126,0.16);
+    border-radius: 16px; padding: 18px 20px; animation: fadeUp 0.2s ease;
+  }
+  .play-btn {
+    padding: 11px 22px; background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    border: none; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 9px; margin-top: 14px;
+    font-family: 'Lato', sans-serif; font-weight: 700; font-size: 13px; color: #1a0f00;
+  }
+  .hint-box {
+    padding: 10px 14px; background: rgba(200,169,126,0.07); border-radius: 10px;
+    display: flex; align-items: center; gap: 8px; margin-top: 12px;
+    font-size: 12px; color: rgba(200,169,126,0.6);
+  }
+
+  /* SETTINGS ROW */
+  .settings-row {
+    background: var(--card); border: 1px solid rgba(200,169,126,0.08);
+    border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* LOADING */
+  .loading-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 40px; text-align: center; }
+  .loading-img-wrap { position: relative; width: 110px; height: 110px; margin-bottom: 30px; }
+  .loading-img-wrap img { width: 110px; height: 110px; border-radius: 22px; object-fit: cover; opacity: 0.55; display: block; }
+  .loading-glow { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(135deg,rgba(200,169,126,0.35),transparent); animation: pulse 1.8s ease-in-out infinite; }
+
+  /* BACK BTN */
+  .back-btn {
+    position: absolute; top: 16px; left: 16px;
+    background: rgba(0,0,0,0.45); border: 1px solid rgba(200,169,126,0.2);
+    border-radius: 10px; padding: 7px 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 5px; z-index: 10;
+    font-family: 'Lato', sans-serif; font-weight: 600; font-size: 13px; color: var(--gold);
+  }
+
+  @keyframes pulse { 0%,100%{opacity:.25} 50%{opacity:.65} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin { from{transform:rotate(-4deg)} to{transform:rotate(4deg)} }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- NOTIFICATION -->
+  <div id="notif" onclick="dismissNotif()">
+    <div style="width:40px;height:40px;border-radius:10px;background:rgba(200,169,126,0.12);border:1px solid rgba(200,169,126,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8a97e" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="color:#e8c99a;font-weight:700;font-size:13px;font-family:'Playfair Display',serif;">Accurate tabs ready</div>
+      <div id="notif-song" style="color:rgba(200,169,126,0.5);font-size:11.5px;margin-top:2px;"></div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(200,169,126,0.5)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </div>
+
+  <div id="screen-home" class="screen"></div>
+  <div id="screen-loading" class="screen no-pad" style="display:none;"></div>
+  <div id="screen-result" class="screen" style="display:none;"></div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-search" onclick="setNav('search')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Discover</span>
+    </button>
+    <button class="nav-btn" id="nav-library" onclick="setNav('library')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Library</span>
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="setNav('settings')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────────
+const state = {
+  nav: 'search',
+  screen: 'home',
+  inputMode: 'name',
+  song: '', artist: '',
+  guitar: 'acoustic', skill: 'beginner',
+  activeChord: null, tabView: 'chords',
+  progress: 0, simplified: false, saved: false,
+  notifTimer: null, loadTimer: null,
+};
+
+const GUITAR_IMGS = {
+  classical: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=480&h=220&fit=crop&crop=center',
+  acoustic:  'https://images.unsplash.com/photo-1525201548942-d8732f6617a0?w=480&h=220&fit=crop&crop=center',
+  electric:  'https://images.unsplash.com/photo-1564186763535-ebb21ef5277f?w=480&h=220&fit=crop&crop=center',
+};
+const GUITAR_THUMB = {
+  classical: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=160&h=90&fit=crop&crop=center',
+  acoustic:  'https://images.unsplash.com/photo-1525201548942-d8732f6617a0?w=160&h=90&fit=crop&crop=center',
+  electric:  'https://images.unsplash.com/photo-1564186763535-ebb21ef5277f?w=160&h=90&fit=crop&crop=center',
+};
+const LIBRARY = [
+  { title:'Hotel California', artist:'Eagles', type:'acoustic', img:'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=80&h=80&fit=crop' },
+  { title:'Stairway to Heaven', artist:'Led Zeppelin', type:'electric', img:'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=80&h=80&fit=crop' },
+  { title:'Wonderwall', artist:'Oasis', type:'acoustic', img:'https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?w=80&h=80&fit=crop' },
+];
+const CHORDS = {
+  Am: { label:'Am', barre:false, simplified:'A',     fingers:[[2,3,0],[2,4,2],[1,5,1],[0,6,0]] },
+  C:  { label:'C',  barre:false, simplified:'C',     fingers:[[3,5,3],[2,4,2],[0,3,0],[1,2,1]] },
+  G:  { label:'G',  barre:false, simplified:'G',     fingers:[[2,6,3],[2,1,2],[3,5,3]] },
+  F:  { label:'F',  barre:true,  simplified:'Fmaj7', fingers:[[1,1,1],[1,2,1],[2,3,2],[3,4,3],[3,5,3]] },
+  Em: { label:'Em', barre:false, simplified:'Em',    fingers:[[2,3,2],[2,4,2],[2,5,2]] },
+  Dm: { label:'Dm', barre:false, simplified:'D',     fingers:[[1,1,1],[3,2,3],[2,3,2]] },
+};
+const RESULT = {
+  song:'Wonderwall', artist:'Oasis', bpm:87, key:'F# minor', capo:2,
+  chords:['Em','G','Dm','Am','C','F'],
+  tabs:[
+    {s:'e',n:'─0───0───0───0───0───0──'},
+    {s:'B',n:'─0───0───0───1───1───1──'},
+    {s:'G',n:'─0───0───2───2───0───2──'},
+    {s:'D',n:'─2───5───0───2───2───3──'},
+    {s:'A',n:'─2───5───x───0───3───3──'},
+    {s:'E',n:'─0───3───x───x───x───1──'},
+  ],
+};
+
+// ── SVG HELPERS ───────────────────────────────────────────────────────────────
+function svgSearch(color='#c8a97e',size=18){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+}
+function svgFret(color='#c8a97e',size=22){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round">
+    <line x1="5" y1="3" x2="5" y2="21"/><line x1="10" y1="3" x2="10" y2="21"/>
+    <line x1="15" y1="3" x2="15" y2="21"/><line x1="20" y1="3" x2="20" y2="21"/>
+    <line x1="3" y1="7" x2="22" y2="7" stroke-width="2.2"/><line x1="3" y1="12" x2="22" y2="12"/><line x1="3" y1="17" x2="22" y2="17"/>
+    <circle cx="7.5" cy="9.5" r="1.8" fill="${color}" stroke="none"/>
+    <circle cx="17.5" cy="9.5" r="1.8" fill="${color}" stroke="none"/>
+    <circle cx="12.5" cy="14.5" r="1.8" fill="${color}" stroke="none"/>
+  </svg>`;
+}
+function svgMusic(color='#c8a97e',size=17){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+}
+function svgLink(color='#c8a97e',size=17){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+}
+function svgPlay(color='#1a0f00',size=16){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+}
+function svgBookmark(filled,color='#c8a97e',size=17){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled?color:'none'}" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+}
+function svgBack(color='#c8a97e',size=16){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+}
+function svgWave(color='#c8a97e',size=17){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 20 9 4 6 12 2 12"/></svg>`;
+}
+function svgCheck(color='#1a0f00',size=16){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+}
+function svgSparkle(color='rgba(200,169,126,0.6)',size=14){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>`;
+}
+
+// ── CHORD DIAGRAM SVG ─────────────────────────────────────────────────────────
+function chordDiagramSVG(chord, active) {
+  const d = CHORDS[chord]; if(!d) return '';
+  const W=62,H=68,sx=8,sy=12,gx=9,fy=12;
+  const dotColor = active?'#1a0f00':'#c8a97e';
+  const lineColor = active?'rgba(0,0,0,0.2)':'rgba(200,169,126,0.3)';
+  const fretColor = active?'rgba(0,0,0,0.15)':'rgba(200,169,126,0.18)';
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  svg += `<rect x="${sx}" y="${sy-3}" width="${5*gx}" height="3.5" rx="1.5" fill="${dotColor}" opacity="0.85"/>`;
+  for(let i=0;i<6;i++) svg += `<line x1="${sx+i*gx}" y1="${sy}" x2="${sx+i*gx}" y2="${sy+4*fy}" stroke="${lineColor}" stroke-width="1.2"/>`;
+  for(let i=1;i<=4;i++) svg += `<line x1="${sx}" y1="${sy+i*fy}" x2="${sx+5*gx}" y2="${sy+i*fy}" stroke="${fretColor}" stroke-width="1"/>`;
+  if(d.barre) svg += `<rect x="${sx}" y="${sy+fy*0.25}" width="${5*gx}" height="${fy*0.5}" rx="${fy*0.25}" fill="${active?'rgba(0,0,0,0.45)':'rgba(200,169,126,0.55)'}"/>`;
+  d.fingers.forEach(([fret,str,pos])=>{
+    if(pos!=='x'&&pos!==0) svg += `<circle cx="${sx+(str-1)*gx}" cy="${sy+(fret-0.5)*fy}" r="4.5" fill="${dotColor}"/>`;
+  });
+  d.fingers.forEach(([,str,pos])=>{
+    if(pos==='x'||pos===0) svg += `<text x="${sx+(str-1)*gx}" y="${sy-6}" text-anchor="middle" font-size="8" fill="${active?'#1a0f00':'rgba(200,169,126,0.5)'}" font-family="serif">${pos==='x'?'×':'○'}</text>`;
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+// ── RENDER FUNCTIONS ──────────────────────────────────────────────────────────
+function renderHome() {
+  const s = state;
+  const nameActive = s.inputMode==='name';
+  document.getElementById('screen-home').innerHTML = `
+    <div style="padding:34px 20px 28px;">
+      <!-- Brand -->
+      <div style="display:flex;align-items:center;gap:15px;margin-bottom:30px;">
+        <div style="width:52px;height:52px;border-radius:14px;background:rgba(200,169,126,0.07);border:1.5px solid rgba(200,169,126,0.18);display:flex;align-items:center;justify-content:center;">
+          ${svgFret('#c8a97e',26)}
+        </div>
+        <div>
+          <h1 style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:27px;font-weight:800;letter-spacing:-0.5px;line-height:1;">FretSoul</h1>
+          <p style="color:rgba(200,169,126,0.32);font-size:12px;font-weight:300;letter-spacing:0.4px;margin-top:4px;">Any song. Any skill. Instant tabs.</p>
+        </div>
+      </div>
+
+      <!-- Input mode toggle -->
+      <div class="toggle-row" style="margin-bottom:14px;">
+        <button class="toggle-btn ${nameActive?'active':''}" onclick="setInputMode('name')">
+          ${svgMusic(nameActive?'#1a0f00':'rgba(200,169,126,0.35)',16)} Song Name
+        </button>
+        <button class="toggle-btn ${!nameActive?'active':''}" onclick="setInputMode('link')">
+          ${svgLink(!nameActive?'#1a0f00':'rgba(200,169,126,0.35)',16)} YouTube Link
+        </button>
+      </div>
+
+      <!-- Inputs -->
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px;">
+        ${nameActive ? `
+          <input type="text" id="inp-song" placeholder="Song name" value="${s.song}" oninput="state.song=this.value;updateCTA()" onkeydown="if(event.key==='Enter')startSearch()"/>
+          <input type="text" id="inp-artist" placeholder="Artist name" value="${s.artist}" oninput="state.artist=this.value" onkeydown="if(event.key==='Enter')startSearch()"/>
+        ` : `
+          <input type="text" id="inp-song" placeholder="Paste YouTube URL here" value="${s.song}" oninput="state.song=this.value;updateCTA()" onkeydown="if(event.key==='Enter')startSearch()"/>
+        `}
+      </div>
+
+      <!-- Guitar type -->
+      <p class="label">Guitar Type</p>
+      <div style="display:flex;gap:10px;margin-bottom:22px;">
+        ${['classical','acoustic','electric'].map(type=>`
+          <button class="guitar-card ${s.guitar===type?'active':''}" onclick="setGuitar('${type}')">
+            <img src="${GUITAR_THUMB[type]}" alt="${type}" loading="lazy"/>
+            <span>${type}</span>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Skill level -->
+      <p class="label">Skill Level</p>
+      <div style="display:flex;gap:10px;margin-bottom:28px;">
+        ${['beginner','intermediate','pro'].map(level=>`
+          <button class="skill-btn ${s.skill===level?'active':''}" onclick="setSkill('${level}')">
+            <div>${s.skill===level ? svgCheck('#1a0f00',16) : svgFret(level==='pro'?'#c8a97e':level==='intermediate'?'rgba(200,169,126,0.7)':'rgba(200,169,126,0.45)',18)}</div>
+            <span>${level}</span>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- CTA -->
+      <button class="cta-btn ${s.song.trim()?'ready':''}" id="cta-btn" onclick="startSearch()">
+        ${svgSearch(s.song.trim()?'#1a0f00':'rgba(200,169,126,0.2)',18)}
+        Generate Tabs
+      </button>
+    </div>
+  `;
+}
+
+function renderLoading() {
+  document.getElementById('screen-loading').innerHTML = `
+    <div class="loading-wrap">
+      <div class="loading-img-wrap">
+        <img src="${GUITAR_IMGS[state.guitar]}" alt="guitar" loading="lazy"/>
+        <div class="loading-glow"></div>
+      </div>
+      <h2 style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:21px;font-weight:700;margin-bottom:8px;">Reading the music</h2>
+      <p style="color:rgba(200,169,126,0.4);font-size:13px;font-weight:300;margin-bottom:34px;">Generating tabs for "${state.song || 'your song'}"</p>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-fill" style="width:0%"></div>
+      </div>
+      <p style="color:rgba(200,169,126,0.22);font-size:11px;margin-top:14px;letter-spacing:0.4px;">Quick version first — enhanced version coming shortly</p>
+    </div>
+  `;
+}
+
+function renderResult() {
+  const res = RESULT; const s = state;
+  const activeC = s.activeChord;
+  const cd = activeC ? CHORDS[activeC] : null;
+  document.getElementById('screen-result').innerHTML = `
+    <!-- Hero -->
+    <div class="result-hero">
+      <img src="${GUITAR_IMGS[s.guitar]}" alt="${s.guitar}" loading="lazy"/>
+      <div class="result-hero-overlay"></div>
+      <button class="back-btn" onclick="goHome()">${svgBack()} Back</button>
+      <div class="result-hero-content">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:24px;font-weight:800;margin-bottom:3px;">${res.song}</h2>
+          <p style="color:rgba(232,200,154,0.5);font-size:13px;font-weight:300;">${res.artist}</p>
+        </div>
+        <button class="save-btn ${s.saved?'saved':''}" onclick="toggleSave()">
+          ${svgBookmark(s.saved, s.saved?'#1a0f00':'#c8a97e', 16)}
+          ${s.saved?'Saved':'Save'}
+        </button>
+      </div>
+    </div>
+
+    <!-- Meta chips -->
+    <div style="padding:13px 20px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(200,169,126,0.07);">
+      ${['Key: '+res.key, res.bpm+' BPM', 'Capo '+res.capo, s.guitar.charAt(0).toUpperCase()+s.guitar.slice(1)].map(t=>`<span class="chip">${t}</span>`).join('')}
+    </div>
+
+    <!-- Simplified toggle -->
+    <div style="padding:13px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(200,169,126,0.06);">
+      <div>
+        <div style="color:#e8d5b0;font-size:13px;font-weight:600;">Simplified chords</div>
+        <div style="color:rgba(200,169,126,0.3);font-size:11px;margin-top:2px;">Beginner-friendly versions</div>
+      </div>
+      <div class="switch-track ${s.simplified?'on':''}" onclick="toggleSimplified()">
+        <div class="switch-thumb"></div>
+      </div>
+    </div>
+
+    <!-- Tab view switcher -->
+    <div class="toggle-row" style="margin:14px 20px 0;">
+      <button class="toggle-btn ${s.tabView==='chords'?'active':''}" onclick="setTabView('chords')">
+        ${svgFret(s.tabView==='chords'?'#1a0f00':'rgba(200,169,126,0.35)',15)} Chords
+      </button>
+      <button class="toggle-btn ${s.tabView==='tabs'?'active':''}" onclick="setTabView('tabs')">
+        ${svgWave(s.tabView==='tabs'?'#1a0f00':'rgba(200,169,126,0.35)',15)} Tabs
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div style="padding:16px 20px 36px;">
+      ${s.tabView==='chords' ? `
+        <div class="chord-grid" style="margin-bottom:18px;">
+          ${res.chords.map(ch => {
+            const key = s.simplified ? (CHORDS[ch]?.simplified||ch) : ch;
+            const isActive = s.activeChord===ch;
+            return `<div class="chord-card ${isActive?'active':''}" onclick="setChord('${ch}')">
+              <span class="chord-name">${key}</span>
+              ${chordDiagramSVG(CHORDS[key]?key:ch, isActive)}
+              ${CHORDS[key]?.barre?`<span style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${isActive?'rgba(0,0,0,0.5)':'rgba(200,169,126,0.35)'};">barre</span>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+        ${activeC && cd ? `
+          <div class="chord-detail">
+            <div style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:18px;font-weight:700;margin-bottom:6px;">${activeC} chord</div>
+            <p style="color:rgba(200,169,126,0.5);font-size:13px;line-height:1.65;margin:0 0 0 0;">
+              ${cd.barre ? 'Barre chord — lay your index finger flat across all strings on the first fret.' : 'Open chord — place fingers on marked frets and let open strings ring freely.'}
+            </p>
+            ${cd.barre ? `<div class="hint-box">${svgSparkle()} Try <strong style="color:#c8a97e;">&nbsp;${cd.simplified}&nbsp;</strong> as a simpler alternative</div>` : ''}
+            <button class="play-btn">
+              ${svgPlay('#1a0f00',16)} Play chord sound
+            </button>
+          </div>
+        ` : ''}
+      ` : `
+        <p style="color:rgba(200,169,126,0.3);font-size:12px;margin-bottom:14px;letter-spacing:0.3px;">Capo fret ${res.capo} · Standard tuning (EADGBE)</p>
+        <div class="tab-sheet">
+          ${res.tabs.map(row=>`
+            <div class="tab-row">
+              <span class="tab-string">${row.s}</span>
+              <span class="tab-bar">|</span>
+              <span class="tab-notes">${row.n}</span>
+              <span class="tab-bar">|</span>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function renderLibrary() {
+  document.getElementById('screen-home').innerHTML = `
+    <div style="padding:36px 20px 20px;">
+      <p class="label">Your Collection</p>
+      <h2 style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:26px;font-weight:800;margin-bottom:22px;">Songbook</h2>
+      ${LIBRARY.map(s=>`
+        <div class="card-row" onclick="openSong('${s.title}','${s.artist}','${s.type}')">
+          <img src="${s.img}" alt="${s.title}" style="width:52px;height:52px;border-radius:12px;object-fit:cover;flex-shrink:0;" loading="lazy"/>
+          <div style="flex:1;">
+            <div style="color:#e8d5b0;font-weight:700;font-family:'Playfair Display',serif;font-size:15px;">${s.title}</div>
+            <div style="color:rgba(200,169,126,0.4);font-size:12px;margin-top:3px;">${s.artist} · ${s.type}</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(200,169,126,0.3)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderSettings() {
+  document.getElementById('screen-home').innerHTML = `
+    <div style="padding:36px 20px 20px;">
+      <p class="label">Preferences</p>
+      <h2 style="font-family:'Playfair Display',serif;color:#e8c99a;font-size:26px;font-weight:800;margin-bottom:22px;">Settings</h2>
+      ${[
+        {label:'Theme', value:'Warm & Musical', sub:'Tap to unlock more'},
+        {label:'Remove Ads', value:'$2.99', sub:'One-time purchase'},
+        {label:'Cloud Sync', value:'Active', sub:'Songbook backed up'},
+        {label:'Version', value:'1.0 Beta', sub:'FretSoul'},
+      ].map(row=>`
+        <div class="settings-row">
+          <div><div style="color:#e8d5b0;font-weight:600;font-size:14px;">${row.label}</div><div style="color:rgba(200,169,126,0.35);font-size:12px;margin-top:3px;">${row.sub}</div></div>
+          <span style="color:rgba(200,169,126,0.55);font-size:12px;font-weight:600;">${row.value}</span>
+        </div>
+      `).join('')}
+
+      <div style="margin-top:20px;padding:18px;background:rgba(200,169,126,0.05);border-radius:16px;border:1px solid rgba(200,169,126,0.12);">
+        <p class="label" style="margin-bottom:14px;">Unlock Themes</p>
+        ${[
+          {name:'Dark & Moody', desc:'Studio feel, neon accents'},
+          {name:'Clean & Minimal', desc:'Crisp white, pure focus'},
+        ].map((t,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;${i===0?'margin-bottom:14px;':''}">
+            <div><div style="color:#e8d5b0;font-size:13px;font-weight:600;">${t.name}</div><div style="color:rgba(200,169,126,0.35);font-size:11px;margin-top:2px;">${t.desc}</div></div>
+            <button style="background:linear-gradient(135deg,#c8a97e,#a07850);border:none;border-radius:9px;padding:7px 14px;color:#1a0f00;font-size:11px;font-weight:700;cursor:pointer;font-family:'Lato',sans-serif;">Watch Ad</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function setNav(tab) {
+  state.nav = tab;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-'+tab).classList.add('active');
+  // Update nav icon colors
+  document.querySelectorAll('.nav-btn svg').forEach(svg=>{
+    const btn = svg.closest('.nav-btn');
+    const col = btn.classList.contains('active') ? '#c8a97e' : 'rgba(200,169,126,0.28)';
+    svg.setAttribute('stroke', col);
+  });
+  // Remove dots
+  document.querySelectorAll('.nav-dot').forEach(d=>d.remove());
+  const activeBtn = document.getElementById('nav-'+tab);
+  const dot = document.createElement('div'); dot.className='nav-dot'; activeBtn.appendChild(dot);
+
+  if(tab==='library') { showScreen('home'); renderLibrary(); }
+  else if(tab==='settings') { showScreen('home'); renderSettings(); }
+  else { showScreen('home'); renderHome(); state.screen='home'; }
+}
+
+function showScreen(name) {
+  ['home','loading','result'].forEach(s=>{
+    document.getElementById('screen-'+s).style.display = s===name?'block':'none';
+  });
+  // Hide nav on loading
+  document.querySelector('.bottom-nav').style.display = name==='loading'?'none':'flex';
+}
+
+function setInputMode(mode) {
+  state.inputMode = mode; renderHome();
+  setTimeout(()=>{ const el=document.getElementById('inp-song'); if(el) el.focus(); },50);
+}
+function setGuitar(g) { state.guitar=g; renderHome(); }
+function setSkill(sk) { state.skill=sk; renderHome(); }
+function updateCTA() {
+  const btn = document.getElementById('cta-btn'); if(!btn) return;
+  if(state.song.trim()) btn.classList.add('ready'); else btn.classList.remove('ready');
+}
+
+function startSearch() {
+  const el = document.getElementById('inp-song');
+  if(el) state.song = el.value;
+  if(!state.song.trim()) return;
+  state.screen='loading'; state.activeChord=null; state.tabView='chords'; state.saved=false;
+  showScreen('loading'); renderLoading();
+  clearInterval(state.loadTimer); clearTimeout(state.notifTimer);
+  let p=0;
+  state.loadTimer = setInterval(()=>{
+    p += Math.random()*15; if(p>=90){p=90;clearInterval(state.loadTimer);}
+    const fill=document.getElementById('prog-fill'); if(fill) fill.style.width=Math.min(p,90)+'%';
+  },200);
+  setTimeout(()=>{
+    clearInterval(state.loadTimer);
+    const fill=document.getElementById('prog-fill'); if(fill) fill.style.width='100%';
+    setTimeout(()=>{
+      showScreen('result'); renderResult();
+      state.notifTimer = setTimeout(()=>{
+        document.getElementById('notif-song').textContent='Better version of '+state.song+' is available';
+        document.getElementById('notif').classList.add('show');
+      }, 5000);
+    },350);
+  },2800);
+}
+
+function goHome() {
+  clearTimeout(state.notifTimer);
+  document.getElementById('notif').classList.remove('show');
+  state.screen='home'; showScreen('home'); renderHome();
+}
+
+function dismissNotif() { document.getElementById('notif').classList.remove('show'); }
+function toggleSave() { state.saved=!state.saved; renderResult(); }
+function toggleSimplified() { state.simplified=!state.simplified; state.activeChord=null; renderResult(); }
+function setTabView(v) { state.tabView=v; renderResult(); }
+function setChord(ch) { state.activeChord = state.activeChord===ch?null:ch; renderResult(); }
+function openSong(title,artist,type) {
+  state.song=title; state.artist=artist; state.guitar=type;
+  setNav('search'); startSearch();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+showScreen('home');
+renderHome();
+// Add active dot to search nav
+const dot = document.createElement('div'); dot.className='nav-dot';
+document.getElementById('nav-search').appendChild(dot);
+// Update nav icon colors on load
+document.querySelectorAll('.nav-btn svg').forEach(svg=>{
+  const btn = svg.closest('.nav-btn');
+  const col = btn.classList.contains('active') ? '#c8a97e' : 'rgba(200,169,126,0.28)';
+  svg.setAttribute('stroke', col);
+});
+</script>
+</body>
+</html>
